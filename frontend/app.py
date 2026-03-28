@@ -20,11 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 # import our backend functions
 from health_score import calculate_health_score
-from llm_advisor import (
-    generate_health_score_advice,
-    generate_personalized_investment_plan,
-    generate_xray_advice,
-)
+from llm_advisor import generate_advice_and_plan_fast, generate_xray_advice
 from translator import translate_to_language, get_onboarding_questions, extract_number_from_answer
 
 # ── Page Configuration ──────────────────────────────────────────────────────
@@ -517,6 +513,11 @@ def show_questions_screen():
     st.markdown(f"## {current_q['text']}")
     st.caption(f"💡 {current_q['example']}")
 
+    st.info(
+        "⏭️ **Not applicable to you?** Use **Skip this question** below — we use a safe default "
+        "(0 for amounts, or “not specified” for text) so you can still get a useful score."
+    )
+
     st.markdown("##### 🎤 Optional voice (skip if you prefer typing)")
     ar, au = _optional_voice_row(qkey)
     blob = ar if ar is not None else au
@@ -564,28 +565,30 @@ def show_questions_screen():
             key=f"num_{qkey}",
         )
 
-    if st.button(get_ui_text("next_btn"), key="q_next", type="primary"):
-        if kind == "text":
-            raw = (st.session_state.get(f"txt_{qkey}") or "").strip()
-            if not raw:
-                st.warning("Please type something, or use Skip.")
+    col_next, col_skip = st.columns(2)
+    with col_next:
+        if st.button(f"✅ {get_ui_text('next_btn')}", key="q_next", type="primary", use_container_width=True):
+            if kind == "text":
+                raw = (st.session_state.get(f"txt_{qkey}") or "").strip()
+                if not raw:
+                    st.warning("Type an answer, or tap **Skip** if this doesn’t apply.")
+                else:
+                    st.session_state.user_data[qkey] = raw
+                    st.rerun()
             else:
-                st.session_state.user_data[qkey] = raw
-                st.rerun()
-        else:
-            n = st.session_state.get(f"num_{qkey}")
-            if n is None:
-                st.warning("Please enter a value.")
+                n = st.session_state.get(f"num_{qkey}")
+                if n is None:
+                    st.warning("Enter a number, or tap **Skip** if this doesn’t apply.")
+                else:
+                    st.session_state.user_data[qkey] = float(n) if kind == "rupees" else int(n)
+                    st.rerun()
+    with col_skip:
+        if st.button("⏭️ Skip — not applicable", key="q_skip", use_container_width=True):
+            if kind == "text":
+                st.session_state.user_data[qkey] = "Not applicable — skipped"
             else:
-                st.session_state.user_data[qkey] = float(n) if kind == "rupees" else int(n)
-                st.rerun()
-
-    if st.button("⏭️ Skip (use 0 for numbers)", key="q_skip"):
-        if kind == "text":
-            st.session_state.user_data[qkey] = "Not specified"
-        else:
-            st.session_state.user_data[qkey] = 0
-        st.rerun()
+                st.session_state.user_data[qkey] = 0
+            st.rerun()
 
 
 # ── Screen: Calculating ────────────────────────────────────────────────────────
@@ -626,15 +629,20 @@ def show_calculating_screen():
 
         lang = st.session_state.language
         try:
-            advice = generate_health_score_advice(result, lang)
-            st.session_state.ai_advice = translate_to_language(advice, lang)
+            summary, plan, used_llm = generate_advice_and_plan_fast(dict(data), result, lang)
+            if used_llm:
+                st.session_state.ai_advice = summary
+                st.session_state.ai_plan = plan
+            else:
+                if lang in ("tamil", "hindi"):
+                    st.session_state.ai_advice = summary
+                elif lang == "english":
+                    st.session_state.ai_advice = summary
+                else:
+                    st.session_state.ai_advice = translate_to_language(summary, lang)
+                st.session_state.ai_plan = plan
         except Exception:
             st.session_state.ai_advice = None
-
-        try:
-            plan = generate_personalized_investment_plan(dict(data), result, lang)
-            st.session_state.ai_plan = plan
-        except Exception:
             st.session_state.ai_plan = None
 
         st.session_state.screen = 'results'
