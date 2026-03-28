@@ -274,6 +274,12 @@ def _apply_voice_to_question_inputs(qkey: str, kind: str, voice_text: str | None
 def show_home_screen():
     """Language, hero, optional voice shortcut, typed income + career, quick-pick shortcuts."""
 
+    # Quick-pick must apply BEFORE st.number_input(..., key="home_monthly") runs (Streamlit rule).
+    if "_pending_quick_monthly" in st.session_state:
+        m = int(st.session_state.pop("_pending_quick_monthly"))
+        st.session_state.home_monthly = m
+        st.session_state.home_spend = int(m * 0.7)
+
     if "home_monthly" not in st.session_state:
         st.session_state.home_monthly = 0
     if "home_spend" not in st.session_state:
@@ -366,14 +372,18 @@ def show_home_screen():
     q1, q2 = st.columns(2)
     with q1:
         if st.button(f"🏪\n{income_levels[0]}", key="income_0"):
-            _set_income_level("10000")
+            st.session_state._pending_quick_monthly = 10000
+            st.rerun()
         if st.button(f"🏢\n{income_levels[2]}", key="income_2"):
-            _set_income_level("70000")
+            st.session_state._pending_quick_monthly = 70000
+            st.rerun()
     with q2:
         if st.button(f"🏫\n{income_levels[1]}", key="income_1"):
-            _set_income_level("25000")
+            st.session_state._pending_quick_monthly = 25000
+            st.rerun()
         if st.button(f"🚗\n{income_levels[3]}", key="income_3"):
-            _set_income_level("150000")
+            st.session_state._pending_quick_monthly = 150000
+            st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.button(f"➡️ {get_ui_text('calculate_btn')}", key="go_to_questions", type="primary"):
@@ -388,13 +398,6 @@ def show_home_screen():
         st.session_state.income_level = str(monthly)
         st.session_state.screen = "questions"
         st.rerun()
-
-
-def _set_income_level(monthly_amount: str):
-    m = float(monthly_amount)
-    st.session_state.home_monthly = int(m)
-    st.session_state.home_spend = int(m * 0.7)
-    st.rerun()
 
 
 # ── Screen: Voice ──────────────────────────────────────────────────────────────
