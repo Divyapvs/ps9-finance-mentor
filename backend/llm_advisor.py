@@ -12,7 +12,9 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from repo root (works when Streamlit cwd is frontend/)
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
 
 def _api_key() -> str | None:
@@ -56,7 +58,7 @@ def _call_ollama(prompt: str) -> str | None:
                 "stream": False,
                 "options": {"temperature": 0.8},
             },
-            timeout=120,
+            timeout=300,
         )
         r.raise_for_status()
         data = r.json()
