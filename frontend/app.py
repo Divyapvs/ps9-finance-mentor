@@ -506,7 +506,7 @@ def show_questions_screen():
     qkey = current_q["key"]
     kind = current_q.get("kind", "rupees")
 
-    if st.button(get_ui_text("back_btn"), key="q_back"):
+    if st.button(get_ui_text("back_btn"), key=f"q_back_{qkey}"):
         st.session_state.screen = "home"
         st.rerun()
 
@@ -567,7 +567,12 @@ def show_questions_screen():
 
     col_next, col_skip = st.columns(2)
     with col_next:
-        if st.button(f"✅ {get_ui_text('next_btn')}", key="q_next", type="primary", use_container_width=True):
+        if st.button(
+            f"✅ {get_ui_text('next_btn')}",
+            key=f"q_next_{qkey}",
+            type="primary",
+            use_container_width=True,
+        ):
             if kind == "text":
                 raw = (st.session_state.get(f"txt_{qkey}") or "").strip()
                 if not raw:
@@ -583,7 +588,11 @@ def show_questions_screen():
                     st.session_state.user_data[qkey] = float(n) if kind == "rupees" else int(n)
                     st.rerun()
     with col_skip:
-        if st.button("⏭️ Skip — not applicable", key="q_skip", use_container_width=True):
+        if st.button(
+            "⏭️ Skip — not applicable",
+            key=f"q_skip_{qkey}",
+            use_container_width=True,
+        ):
             if kind == "text":
                 st.session_state.user_data[qkey] = "Not applicable — skipped"
             else:
@@ -762,7 +771,11 @@ def show_results_screen():
     st.markdown("### Upload your investment statement (optional)")
     st.caption("Have mutual funds? Upload your CAMS statement for a detailed analysis.")
     
-    uploaded_file = st.file_uploader("Choose your CAMS PDF", type=['pdf'], key="cams_upload")
+    uploaded_file = st.file_uploader(
+        "Choose your CAMS PDF",
+        type=["pdf"],
+        key="cams_upload_results_tab",
+    )
     
     if uploaded_file:
         with st.spinner("Reading your investments..."):
@@ -812,7 +825,11 @@ def show_xray_screen():
     st.markdown("## Portfolio X-Ray")
     st.caption("Upload your CAMS statement to see how your investments are really performing")
     
-    uploaded_file = st.file_uploader("Choose CAMS PDF", type=['pdf'])
+    uploaded_file = st.file_uploader(
+        "Choose CAMS PDF",
+        type=["pdf"],
+        key="cams_upload_xray_tab",
+    )
     
     if uploaded_file:
         with st.spinner("Analysing your investments (10 seconds)..."):
@@ -898,13 +915,15 @@ def main():
         st.markdown("## Help a family member")
         st.caption("Help your parents or relatives check their money health")
         
-        family_name = st.text_input("Family member's name:")
-        
+        family_name = st.text_input(
+            "Family member's name:",
+            key="family_member_name_input",
+        )
+
         if family_name:
             st.markdown(f"Answering questions on behalf of **{family_name}**")
-            
-            # reset and go to questions for family member
-            if st.button(f"Start for {family_name}"):
+
+            if st.button("Start questionnaire for this person", key="family_start_btn"):
                 st.session_state.user_data = {}
                 st.session_state.screen = 'questions'
                 st.session_state.question_index = 0

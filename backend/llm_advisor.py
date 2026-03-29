@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import random
+import re
 from typing import Any
 
 import requests
@@ -87,17 +88,19 @@ def _user_snapshot(user_data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _parse_combined_llm_output(text: str) -> tuple[str, str] | None:
-    if "===SUMMARY===" not in text or "===STEPS===" not in text:
+    """Accept minor formatting differences from Gemini/Ollama (spacing, case)."""
+    if not text or not str(text).strip():
         return None
-    try:
-        rest = text.split("===SUMMARY===", 1)[1]
-        summary_part, steps_part = rest.split("===STEPS===", 1)
-        summary = summary_part.strip()
-        plan = steps_part.strip()
-        if summary and plan:
-            return summary, plan
-    except (ValueError, IndexError):
+    m = re.search(
+        r"===\s*SUMMARY\s*===\s*(.*?)\s*===\s*STEPS\s*===\s*(.*)",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if not m:
         return None
+    summary, plan = m.group(1).strip(), m.group(2).strip()
+    if summary and plan:
+        return summary, plan
     return None
 
 
